@@ -83,9 +83,58 @@
             });
         };
 
+        // --- Motion blur (simulated) ---
+        let rafId = 0;
+        let lastX = wrapper.scrollLeft;
+        let lastT = performance.now();
+        let idleTimer = 0;
+
+        const setFx = (blurPx, skewDeg) => {
+            wrapper.style.setProperty('--scroll-blur', `${blurPx.toFixed(2)}px`);
+            wrapper.style.setProperty('--scroll-skew', `${skewDeg.toFixed(2)}deg`);
+        };
+
+        const stopFx = () => {
+            wrapper.classList.remove('is-scrolling');
+            setFx(0, 0);
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = 0;
+        };
+
+        const tickFx = () => {
+            const now = performance.now();
+            const x = wrapper.scrollLeft;
+            const dt = Math.max(8, now - lastT);
+            const dx = x - lastX;
+
+            // px/ms => scale to a small blur amount.
+            const speed = Math.abs(dx) / dt;
+            const blur = Math.min(1.25, speed * 18);
+            const skew = Math.max(-2.2, Math.min(2.2, (dx / dt) * 22));
+
+            setFx(blur, skew);
+            lastX = x;
+            lastT = now;
+
+            rafId = requestAnimationFrame(tickFx);
+        };
+
+        const startFx = () => {
+            if (reduceMotion) return;
+            wrapper.classList.add('is-scrolling');
+            if (!rafId) {
+                lastX = wrapper.scrollLeft;
+                lastT = performance.now();
+                rafId = requestAnimationFrame(tickFx);
+            }
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(stopFx, 120);
+        };
+
         wrapper.addEventListener('scroll', () => {
             // Keep target in sync if user drags scrollbar/touches.
             if (!tween || !tween.isActive()) targetScrollLeft = wrapper.scrollLeft;
+            startFx();
         }, { passive: true });
 
         wrapper.addEventListener('wheel', (e) => {
@@ -100,6 +149,7 @@
             // Clamp extreme deltas so we animate smoothly even on fast wheels.
             const clampedDelta = Math.max(-240, Math.min(240, delta));
             animateTo(targetScrollLeft + clampedDelta);
+            startFx();
         }, { passive: false });
     }
     
