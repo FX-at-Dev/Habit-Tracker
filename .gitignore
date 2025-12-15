@@ -1,0 +1,23 @@
+# Environment files
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.netlify/
+
+# Logs
+*.log
+
+# Node / build (if you add tooling later)
+node_modules/
+dist/
+build/
+
+# Python (if you run local scripts)
+__pycache__/
+*.pyc
+.venv/
+venv/

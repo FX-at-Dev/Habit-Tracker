@@ -8,9 +8,12 @@
     const CONFIG_KEY = 'habit_tracker_config_v2';
     const THEME_KEY = 'habit_tracker_theme';
 
-    // --- Firebase Cloud Sync (paste your Firebase config here) ---
-    // Create a Firebase project, enable: Auth (Anonymous) + Firestore.
-    const FIREBASE_CONFIG = {
+    // --- Firebase Cloud Sync ---
+    // This app loads Firebase config from a Netlify Function at:
+    //   /.netlify/functions/firebase-config
+    // That function reads FIREBASE_* variables from Netlify (or from .env when using `netlify dev`).
+    // If you are NOT using Netlify Functions locally, you can temporarily paste your config here.
+    let FIREBASE_CONFIG = {
         apiKey: "",
         authDomain: "",
         projectId: "",
@@ -74,7 +77,7 @@
     let charts = {};
 
     // --- Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         // Always open on the current month/year
         currentDate = new Date();
         selectedMonth = currentDate.getMonth();
@@ -91,12 +94,52 @@
 
         updateThemeToggleIcon();
 
+        await loadFirebaseConfigFromNetlify();
+
         autoConnectCloudSyncIfEnabled();
 
         initDateSelectors();
         initSwatches();
         renderDashboard();
     });
+
+    async function loadFirebaseConfigFromNetlify() {
+        // If config is already present, don't fetch.
+        if (isFirebaseConfigured()) {
+            updateCloudSyncButtonLabel();
+            return;
+        }
+
+        // Only Netlify-hosted sites (or `netlify dev`) will have this endpoint.
+        const url = '/.netlify/functions/firebase-config';
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2500);
+
+        try {
+            const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+            if (!res.ok) {
+                updateCloudSyncButtonLabel();
+                return;
+            }
+            const cfg = await res.json();
+            if (!cfg || typeof cfg !== 'object') {
+                updateCloudSyncButtonLabel();
+                return;
+            }
+
+            FIREBASE_CONFIG = {
+                apiKey: cfg.apiKey || '',
+                authDomain: cfg.authDomain || '',
+                projectId: cfg.projectId || '',
+                appId: cfg.appId || ''
+            };
+        } catch (e) {
+            // ignore
+        } finally {
+            clearTimeout(timeout);
+            updateCloudSyncButtonLabel();
+        }
+    }
 
     function isFirebaseConfigured() {
         return Boolean(
