@@ -40,6 +40,68 @@
         cloudSync.clientId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') ? globalThis.crypto.randomUUID() : fallbackId;
         localStorage.setItem(CLOUD_CLIENT_ID_KEY, cloudSync.clientId);
     }
+
+    // --- Smooth horizontal scroll (Monthly Tracker) ---
+    let trackerSmoothScrollInitialized = false;
+    function initSmoothTrackerScroll() {
+        if (trackerSmoothScrollInitialized) return;
+        const wrapper = document.querySelector('.tracker-wrapper');
+        if (!wrapper) return;
+        trackerSmoothScrollInitialized = true;
+
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        let targetScrollLeft = wrapper.scrollLeft;
+        let tween = null;
+        const quickTo = (!reduceMotion && typeof gsap !== 'undefined' && gsap && typeof gsap.quickTo === 'function')
+            ? gsap.quickTo(wrapper, 'scrollLeft', { duration: 0.75, ease: 'power2.out' })
+            : null;
+
+        const clamp = (value) => {
+            const max = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+            return Math.min(max, Math.max(0, value));
+        };
+
+        const animateTo = (next) => {
+            targetScrollLeft = clamp(next);
+            if (reduceMotion || typeof gsap === 'undefined') {
+                wrapper.scrollLeft = targetScrollLeft;
+                return;
+            }
+
+            if (quickTo) {
+                quickTo(targetScrollLeft);
+                return;
+            }
+
+            if (tween) tween.kill();
+            tween = gsap.to(wrapper, {
+                scrollLeft: targetScrollLeft,
+                duration: 0.75,
+                ease: 'power2.out',
+                overwrite: true,
+            });
+        };
+
+        wrapper.addEventListener('scroll', () => {
+            // Keep target in sync if user drags scrollbar/touches.
+            if (!tween || !tween.isActive()) targetScrollLeft = wrapper.scrollLeft;
+        }, { passive: true });
+
+        wrapper.addEventListener('wheel', (e) => {
+            // Smooth only horizontal intent:
+            // - trackpad horizontal (deltaX)
+            // - Shift+wheel (deltaY becomes horizontal)
+            const hasHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+            const delta = hasHorizontal ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+            if (!delta) return;
+
+            e.preventDefault();
+            // Clamp extreme deltas so we animate smoothly even on fast wheels.
+            const clampedDelta = Math.max(-240, Math.min(240, delta));
+            animateTo(targetScrollLeft + clampedDelta);
+        }, { passive: false });
+    }
     
     // Expanded Pastel Palette
     const pastelPalette = [
@@ -101,6 +163,9 @@
         initDateSelectors();
         initSwatches();
         renderDashboard();
+
+        // Enhance the monthly tracker horizontal scrolling.
+        initSmoothTrackerScroll();
     });
 
     async function loadFirebaseConfigFromNetlify() {
