@@ -377,6 +377,21 @@
             background: var(--color-base-white);
             box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
         }
+        
+        .dark-mode select, 
+        .dark-mode button, 
+        .dark-mode input[type="text"], 
+        .dark-mode input[type="color"] {
+            background: rgba(55, 65, 81, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+        
+        .dark-mode input[type="text"]:focus, 
+        .dark-mode select:focus {
+            background: rgba(55, 65, 81, 0.8);
+            border-color: var(--border-focus);
+        }
 
         input[type="text"] { 
             width: 100%;
